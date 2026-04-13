@@ -5,7 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/LychApe/LynxPilot/internal/model"
+	healthmodel "github.com/LychApe/LynxPilot/internal/model/health"
+	usermodel "github.com/LychApe/LynxPilot/internal/model/user"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -31,7 +32,7 @@ func NewGorm(dbPath string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&model.HealthRecord{}); err != nil {
+	if err := db.AutoMigrate(&healthmodel.Record{}, &usermodel.User{}); err != nil {
 		sqlDB, sqlErr := db.DB()
 		if sqlErr == nil {
 			if closeErr := sqlDB.Close(); closeErr != nil {

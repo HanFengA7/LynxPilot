@@ -36,6 +36,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{Port: 8080},
+		Auth:   AuthConfig{TokenSalt: "change-me-token-salt"},
 	}
 	if err := yaml.Unmarshal(content, cfg); err != nil {
 		return nil, err
@@ -43,6 +44,9 @@ func LoadConfig(path string) (*Config, error) {
 
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 8080
+	}
+	if cfg.Auth.TokenSalt == "" {
+		cfg.Auth.TokenSalt = "change-me-token-salt"
 	}
 
 	return cfg, nil
