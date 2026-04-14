@@ -10,8 +10,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const defaultConfigPath = "config/config.yaml"
-
 type Config struct {
 	Server ServerConfig `yaml:"server"`
 	Auth   AuthConfig   `yaml:"auth"`
@@ -26,6 +24,7 @@ type AuthConfig struct {
 	TokenSalt string `yaml:"token_salt"` // 认证密钥
 }
 
+// 加载配置
 func LoadConfig(path string) (*Config, error) {
 	candidatePaths := buildCandidatePaths(path)
 
@@ -49,9 +48,10 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// 构建候选路径
 func buildCandidatePaths(path string) []string {
 	if path == "" {
-		path = defaultConfigPath
+		path = "config/config.yaml"
 	}
 
 	if filepath.IsAbs(path) {
@@ -78,6 +78,7 @@ func buildCandidatePaths(path string) []string {
 	return unique
 }
 
+// 读取配置文件
 func readConfigByCandidates(candidatePaths []string) ([]byte, string, error) {
 	var lastErr error
 	for _, candidate := range candidatePaths {
@@ -90,6 +91,7 @@ func readConfigByCandidates(candidatePaths []string) ([]byte, string, error) {
 	return nil, "", lastErr
 }
 
+// 验证配置
 func validateConfig(cfg *Config) error {
 	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
 		return logger.Errorf("配置无效: server.port 必须在 1-65535 之间，当前值: %d", cfg.Server.Port)
