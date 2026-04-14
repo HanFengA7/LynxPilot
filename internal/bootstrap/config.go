@@ -11,8 +11,9 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	Auth   AuthConfig   `yaml:"auth"`
+	Server   ServerConfig   `yaml:"server"`
+	Auth     AuthConfig     `yaml:"auth"`
+	Database DatabaseConfig `yaml:"database"`
 }
 
 type ServerConfig struct {
@@ -24,11 +25,15 @@ type AuthConfig struct {
 	TokenSalt string `yaml:"token_salt"` // 认证密钥
 }
 
+type DatabaseConfig struct {
+	Path string `yaml:"path"` // sqlite 数据库文件路径
+}
+
 // 加载配置
 func LoadConfig(path string) (*Config, error) {
-	candidatePaths := buildCandidatePaths(path)
+	candidatePaths := loadConfigBuildCandidatePaths(path)
 
-	content, loadedPath, err := readConfigByCandidates(candidatePaths)
+	content, loadedPath, err := loadConfigReadByCandidates(candidatePaths)
 	if err != nil {
 		return nil, logger.Errorf("读取配置文件失败，已尝试路径%v: %v", candidatePaths, err)
 	}
@@ -40,7 +45,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, logger.Errorf("解析配置文件失败: %v", err)
 	}
 
-	if err := validateConfig(&cfg); err != nil {
+	if err := loadConfigValidate(&cfg); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +54,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // 构建候选路径
-func buildCandidatePaths(path string) []string {
+func loadConfigBuildCandidatePaths(path string) []string {
 	if path == "" {
 		path = "config/config.yaml"
 	}
@@ -79,7 +84,7 @@ func buildCandidatePaths(path string) []string {
 }
 
 // 读取配置文件
-func readConfigByCandidates(candidatePaths []string) ([]byte, string, error) {
+func loadConfigReadByCandidates(candidatePaths []string) ([]byte, string, error) {
 	var lastErr error
 	for _, candidate := range candidatePaths {
 		content, err := os.ReadFile(candidate)
@@ -92,7 +97,7 @@ func readConfigByCandidates(candidatePaths []string) ([]byte, string, error) {
 }
 
 // 验证配置
-func validateConfig(cfg *Config) error {
+func loadConfigValidate(cfg *Config) error {
 	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
 		return logger.Errorf("配置无效: server.port 必须在 1-65535 之间，当前值: %d", cfg.Server.Port)
 	}
@@ -106,6 +111,13 @@ func validateConfig(cfg *Config) error {
 
 	if strings.TrimSpace(cfg.Auth.TokenSalt) == "" {
 		return logger.Errorf("配置无效: auth.token_salt 不能为空")
+	}
+
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		cfg.Database.Path = "config/lynxpilot.db"
+	} else {
+		cfg.Database.Path = dbPath
 	}
 
 	return nil

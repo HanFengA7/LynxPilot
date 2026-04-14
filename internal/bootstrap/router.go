@@ -25,25 +25,25 @@ func LoadRouter(config *Config) *gin.Engine {
 	// 注册路由
 	routeServer.Register(router)
 
-	LoadRouter_Server(router, config)
+	loadRouterServer(router, config)
 
 	return router
 }
 
-func LoadRouter_Server(router *gin.Engine, config *Config) {
-	server := LoadRouter_CreateHTTPServer(router, config.Server.Port)
-	LoadRouter_WatchShutdownSignal(server)
-	LoadRouter_StartHTTPServer(server)
+func loadRouterServer(router *gin.Engine, config *Config) {
+	server := loadRouterCreateHTTPServer(router, config.Server.Port)
+	loadRouterWatchShutdownSignal(server)
+	loadRouterStartHTTPServer(server)
 }
 
-func LoadRouter_CreateHTTPServer(router *gin.Engine, port int) *http.Server {
+func loadRouterCreateHTTPServer(router *gin.Engine, port int) *http.Server {
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
 	}
 }
 
-func LoadRouter_WatchShutdownSignal(server *http.Server) {
+func loadRouterWatchShutdownSignal(server *http.Server) {
 	// 接收系统信号，执行优雅停止
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -61,7 +61,7 @@ func LoadRouter_WatchShutdownSignal(server *http.Server) {
 	}()
 }
 
-func LoadRouter_StartHTTPServer(server *http.Server) {
+func loadRouterStartHTTPServer(server *http.Server) {
 	// 启动服务
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Errorf("启动服务失败: %v", err)
