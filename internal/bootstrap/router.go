@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	routeServer "github.com/LychApe/LynxPilot/internal/router/server"
 	"github.com/LychApe/LynxPilot/internal/utils/logger"
 	"github.com/gin-gonic/gin"
 )
@@ -22,9 +23,7 @@ func LoadRouter(config *Config) *gin.Engine {
 	router := gin.Default()
 
 	// 注册路由
-	router.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "ok"})
-	})
+	routeServer.Register(router)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Server.Port),
