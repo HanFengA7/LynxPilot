@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	userModel "github.com/LychApe/LynxPilot/internal/model/user"
 	"github.com/LychApe/LynxPilot/internal/utils/logger"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -26,6 +27,10 @@ func LoadDatabase(config *Config) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		return nil, logger.Errorf("初始化 sqlite 数据库失败: %v", err)
+	}
+
+	if err := db.AutoMigrate(&userModel.User{}); err != nil {
+		return nil, logger.Errorf("自动迁移失败: %v", err)
 	}
 
 	DB = db

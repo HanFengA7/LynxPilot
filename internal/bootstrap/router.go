@@ -11,6 +11,7 @@ import (
 	"time"
 
 	routeServer "github.com/LychApe/LynxPilot/internal/router/server"
+	routeUser "github.com/LychApe/LynxPilot/internal/router/user"
 	"github.com/LychApe/LynxPilot/internal/utils/logger"
 	"github.com/gin-gonic/gin"
 )
@@ -22,8 +23,16 @@ func LoadRouter(config *Config) *gin.Engine {
 	// 创建gin引擎
 	router := gin.Default()
 
+	// 注入全局上下文
+	router.Use(func(c *gin.Context) {
+		c.Set("db", DB)
+		c.Set("tokenSalt", config.Auth.TokenSalt)
+		c.Next()
+	})
+
 	// 注册路由
 	routeServer.Register(router)
+	routeUser.Register(router)
 
 	loadRouterServer(router, config)
 
