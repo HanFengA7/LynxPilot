@@ -10,6 +10,33 @@ import (
 	"gorm.io/gorm"
 )
 
+// RegisterHandler 用户注册，单用户系统仅允许创建一个用户
+func RegisterHandler(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"` // 前端传来的 MD5 值
+		Email    string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名和密码不能为空"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	user, err := userService.CreateUser(db, req.Username, req.Password, req.Email)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+	})
+}
+
 // LoginHandler 用户登录，验证账密后签发 JWT 令牌
 func LoginHandler(c *gin.Context) {
 	var req struct {
