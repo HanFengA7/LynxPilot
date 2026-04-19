@@ -2,13 +2,26 @@ package server
 
 import (
 	"os"
-	"syscall"
 	"time"
 
 	processService "github.com/LychApe/LynxPilot/internal/service/process"
 	"github.com/LychApe/LynxPilot/internal/utils/logger"
 	"github.com/gin-gonic/gin"
 )
+
+func triggerSelfShutdown() {
+	pid := os.Getpid()
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		logger.Errorf("查找当前进程失败: %v", err)
+		os.Exit(1)
+	}
+
+	if err := process.Signal(os.Interrupt); err != nil {
+		logger.Errorf("发送关闭信号失败，执行兜底退出: %v", err)
+		os.Exit(0)
+	}
+}
 
 func RebootHandler(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "reboot signal accepted"})
@@ -22,11 +35,7 @@ func RebootHandler(c *gin.Context) {
 			return
 		}
 
-		pid := os.Getpid()
-		if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
-			logger.Errorf("发送重启信号失败: %v", err)
-			os.Exit(1)
-		}
+		triggerSelfShutdown()
 	}()
 }
 
@@ -34,10 +43,6 @@ func ShutdownHandler(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "shutdown signal accepted"})
 
 	go func() {
-		pid := os.Getpid()
-		if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
-			logger.Errorf("发送关闭信号失败: %v", err)
-			os.Exit(1)
-		}
+		triggerSelfShutdown()
 	}()
 }
