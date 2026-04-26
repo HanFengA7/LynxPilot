@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	routeServer "github.com/LychApe/LynxPilot/internal/router/server"
 	routeUser "github.com/LychApe/LynxPilot/internal/router/user"
 	"github.com/LychApe/LynxPilot/internal/utils/logger"
@@ -27,6 +29,7 @@ func LoadRouter(config *Config) *gin.Engine {
 	router.Use(func(c *gin.Context) {
 		c.Set("db", DB)
 		c.Set("tokenSalt", config.Auth.TokenSalt)
+		c.Set("requestId", uuid.New().String())
 		c.Next()
 	})
 
