@@ -55,7 +55,7 @@ async function handleFinish() {
 
 <template>
   <div class="setup-container">
-    <a-card class="setup-card" title="LynxPilot 初始设置" :bordered="false">
+    <a-card class="setup-card" title="LynxPilot 初始设置" variant="borderless">
       <p class="setup-desc">创建管理员账号以开始使用面板</p>
       <a-form
         ref="formRef"
