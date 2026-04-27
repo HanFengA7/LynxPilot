@@ -6,11 +6,12 @@ import (
 	"time"
 
 	processService "github.com/LychApe/LynxPilot/internal/service/process"
+	serverService "github.com/LychApe/LynxPilot/internal/service/server"
 	userService "github.com/LychApe/LynxPilot/internal/service/user"
-	"github.com/LychApe/LynxPilot/internal/utils/logger"
-	"github.com/LychApe/LynxPilot/internal/utils/response"
 	"github.com/LychApe/LynxPilot/internal/utils/appvar"
 	"github.com/LychApe/LynxPilot/internal/utils/format"
+	"github.com/LychApe/LynxPilot/internal/utils/logger"
+	"github.com/LychApe/LynxPilot/internal/utils/response"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -69,4 +70,8 @@ func StatusHandler(c *gin.Context) {
 		"memory":    format.Memory(memStats.Alloc),
 		"uptime":    uptime.String(),
 	})
+}
+
+func PrivateStatusHandler(c *gin.Context) {
+	response.OK(c, serverService.GetStatus())
 }
