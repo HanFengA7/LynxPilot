@@ -65,6 +65,7 @@ func StatusHandler(c *gin.Context) {
 
 	response.OK(c, gin.H{
 		"installed": userService.IsInstalled(db),
+		"version":   appvar.Version,
 		"memory":    format.Memory(memStats.Alloc),
 		"uptime":    uptime.String(),
 	})

@@ -1,0 +1,1 @@
+import{t as e}from"./req-DdQ_OvfD.js";function t(){return e.get(`/public/server/status`)}export{t};
