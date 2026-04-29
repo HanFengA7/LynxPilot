@@ -26,6 +26,7 @@ declare module 'vue' {
     ALayoutHeader: typeof import('antdv-next')['LayoutHeader']
     ALayoutSider: typeof import('antdv-next')['LayoutSider']
     AMenu: typeof import('antdv-next')['Menu']
+    AMenuItem: typeof import('antdv-next')['MenuItem']
     ARow: typeof import('antdv-next')['Row']
     ASpin: typeof import('antdv-next')['Spin']
     ASwitch: typeof import('antdv-next')['Switch']

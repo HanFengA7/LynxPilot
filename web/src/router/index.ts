@@ -27,11 +27,6 @@ const router = createRouter({
           component: () => import('@/views/dashboard/DashboardView.vue'),
         },
         {
-          path: 'server',
-          name: 'server',
-          component: () => import('@/views/server/ServerView.vue'),
-        },
-        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/settings/SettingsView.vue'),
