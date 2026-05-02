@@ -689,7 +689,9 @@ onBeforeUnmount(() => {
   right: 0;
   z-index: 50;
   min-width: 320px;
+  max-height: 280px;
   padding: 14px;
+  overflow-y: auto;
   pointer-events: none;
   opacity: 0;
   background: #fff;

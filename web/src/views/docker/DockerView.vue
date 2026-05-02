@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComposeProject, ContainerInfo, DockerConnection, DockerPingResult, ImageInfo, NetworkInfo, RegistryConfig, VolumeInfo } from '@/api/docker'
+import type { ComposeProject, ContainerInfo, DockerConnection, DockerPingResult, ImageInfo, MirrorConfig, NetworkInfo, RegistryConfig, VolumeInfo } from '@/api/docker'
 import {
   checkComposeAvailable,
   composeDown,
@@ -11,6 +11,7 @@ import {
   createVolume,
   getComposeConfig,
   getDockerConnection,
+  getRegistryMirrors,
   listImages,
   listComposeProjects,
   listContainers,
@@ -27,6 +28,7 @@ import {
   restartContainer,
   saveDockerConnection,
   saveRegistries,
+  saveRegistryMirrors,
   startContainer,
   stopContainer,
   tagImage,
@@ -45,6 +47,7 @@ import {
   LinkOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RocketOutlined,
   SearchOutlined,
   SettingOutlined,
 } from '@antdv-next/icons'
@@ -87,6 +90,10 @@ const registryForm = ref<RegistryConfig[]>([])
 const createVolumeVisible = shallowRef(false)
 const createVolumeLoading = shallowRef(false)
 const newVolume = ref({ name: '', driver: 'local', labels: '', options: '' })
+
+const mirrorVisible = shallowRef(false)
+const mirrorLoading = shallowRef(false)
+const mirrorForm = ref<MirrorConfig[]>([])
 
 const composeUpVisible = shallowRef(false)
 const composeUpLoading = shallowRef(false)
@@ -882,6 +889,37 @@ async function handleCreateVolume() {
   finally { createVolumeLoading.value = false }
 }
 
+async function openMirrorConfig() {
+  mirrorVisible.value = true
+  mirrorLoading.value = true
+  try {
+    const res = await getRegistryMirrors()
+    mirrorForm.value = (res.data ?? []).map((m) => ({ ...m }))
+    if (mirrorForm.value.length === 0) {
+      mirrorForm.value = [{ url: '' }]
+    }
+  } catch { mirrorForm.value = [{ url: '' }] }
+  finally { mirrorLoading.value = false }
+}
+
+function addMirror() {
+  mirrorForm.value.push({ url: '' })
+}
+
+function removeMirror(index: number) {
+  mirrorForm.value.splice(index, 1)
+}
+
+async function handleSaveMirrors() {
+  mirrorLoading.value = true
+  try {
+    await saveRegistryMirrors(mirrorForm.value.filter((m) => m.url))
+    message.success('镜像加速配置已保存，重启 Docker 后生效')
+    mirrorVisible.value = false
+  } catch { message.error('保存镜像加速配置失败') }
+  finally { mirrorLoading.value = false }
+}
+
 function handleRemoveVolume(name: string) {
   Modal.confirm({
     title: '确认删除存储卷', content: `确定要删除存储卷 "${name}" 吗？被使用中的卷无法删除。`, icon: () => h(ExclamationCircleOutlined), okType: 'danger', okText: '删除', cancelText: '取消',
@@ -1103,6 +1141,7 @@ onBeforeUnmount(() => stopRefreshTimer())
           <a-tab-pane key="images" tab="镜像">
             <div class="docker-toolbar">
               <a-button type="primary" @click="pullImageVisible = true"><template #icon><PlusOutlined /></template>拉取镜像</a-button>
+              <a-button @click="openMirrorConfig"><template #icon><RocketOutlined /></template>镜像加速</a-button>
               <a-button @click="handlePruneImages"><template #icon><DeleteOutlined /></template>清理未使用镜像</a-button>
             </div>
             <a-table :columns="imageColumns" :data-source="images" :pagination="{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个镜像` }" :scroll="{ x: 940 }" row-key="id" size="middle">
@@ -1326,6 +1365,26 @@ onBeforeUnmount(() => stopRefreshTimer())
       </div>
     </a-modal>
 
+    <a-modal v-model:open="mirrorVisible" title="镜像加速配置" :confirm-loading="mirrorLoading" ok-text="保存" cancel-text="取消" width="640px" @ok="handleSaveMirrors">
+      <a-spin :spinning="mirrorLoading">
+        <div class="config-hint" style="margin-bottom: 16px">
+          <div class="config-hint-title">镜像加速说明</div>
+          <ul class="config-hint-list">
+            <li>配置将写入 /etc/docker/daemon.json 的 registry-mirrors 字段</li>
+            <li>保存后需重启 Docker 服务才能生效：<code>systemctl restart docker</code></li>
+            <li>仅对本机 Docker 有效，远程连接的 Docker 不受影响</li>
+          </ul>
+        </div>
+        <div class="visual-form">
+          <div v-for="(mirror, idx) in mirrorForm" :key="idx" class="mirror-item">
+            <a-input v-model:value="mirror.url" placeholder="https://mirror.ccs.tencentyun.com" style="flex: 1; font-family: monospace" />
+            <a-button v-if="mirrorForm.length > 1" type="text" danger @click="removeMirror(idx)"><template #icon><DeleteOutlined /></template></a-button>
+          </div>
+          <a-button type="dashed" block @click="addMirror"><template #icon><PlusOutlined /></template>添加加速地址</a-button>
+        </div>
+      </a-spin>
+    </a-modal>
+
     <a-modal v-model:open="composeUpVisible" title="部署 Compose 项目" :confirm-loading="composeUpLoading" ok-text="部署" cancel-text="取消" width="680px" @ok="handleComposeUp">
       <div class="config-form">
         <div class="config-field"><label class="config-label">项目名称（可选）</label><a-input v-model:value="composeProjectName" placeholder="留空则使用 compose 文件中的名称" /></div>
@@ -1506,6 +1565,7 @@ onBeforeUnmount(() => stopRefreshTimer())
 .visual-service-header { display: flex; align-items: center; justify-content: space-between }
 .visual-service-index { color: rgba(0,0,0,.65); font-size: 13px; font-weight: 600 }
 .visual-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.mirror-item { display: flex; align-items: center; gap: 8px }
 
 @media (max-width: 768px) {
   .docker-heading { flex-direction: column; align-items: flex-start; gap: 8px }

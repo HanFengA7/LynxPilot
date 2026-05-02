@@ -215,6 +215,18 @@ export function testDockerConnection(conn: DockerConnection) {
   return req.post('/private/setting/docker/connection/test', conn)
 }
 
+export interface MirrorConfig {
+  url: string
+}
+
+export function getRegistryMirrors() {
+  return req.get<unknown, { data: MirrorConfig[] }>('/private/docker/mirrors')
+}
+
+export function saveRegistryMirrors(data: MirrorConfig[]) {
+  return req.put('/private/docker/mirrors', data)
+}
+
 export interface NetworkInfo {
   id: string
   name: string
