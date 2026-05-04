@@ -123,7 +123,7 @@ const refreshHint = computed(() => {
 async function fetchStatus() {
   try {
     const [panelRes, serverRes] = await Promise.allSettled([
-      getStatus(),
+      getStatus<PanelStatus>(),
       getPrivateStatus(),
     ])
 
