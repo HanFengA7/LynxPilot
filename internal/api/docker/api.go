@@ -97,6 +97,28 @@ func RestartContainerHandler(c *gin.Context) {
 	response.OK(c, gin.H{"message": "容器已重启"})
 }
 
+func PauseContainerHandler(c *gin.Context) {
+	containerID := c.Param("id")
+
+	if err := dockerService.PauseContainer(containerID); err != nil {
+		response.Error(c, http.StatusInternalServerError, 500, "暂停容器失败: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "容器已暂停"})
+}
+
+func UnpauseContainerHandler(c *gin.Context) {
+	containerID := c.Param("id")
+
+	if err := dockerService.UnpauseContainer(containerID); err != nil {
+		response.Error(c, http.StatusInternalServerError, 500, "恢复容器失败: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "容器已恢复"})
+}
+
 func RemoveContainerHandler(c *gin.Context) {
 	containerID := c.Param("id")
 	force := c.Query("force") == "true"

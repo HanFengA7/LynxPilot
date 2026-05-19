@@ -31,7 +31,7 @@ func ComposeUpHandler(c *gin.Context) {
 	}
 
 	if body.Content == "" {
-		response.Error(c, http.StatusBadRequest, 400, "compose 内容不能为空")
+		response.Error(c, http.StatusBadRequest, 400, "容器编排内容不能为空")
 		return
 	}
 
@@ -40,7 +40,7 @@ func ComposeUpHandler(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, gin.H{"message": "Compose 项目已启动"})
+	response.OK(c, gin.H{"message": "容器编排项目已启动"})
 }
 
 func ComposeDownHandler(c *gin.Context) {
@@ -55,7 +55,7 @@ func ComposeDownHandler(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, gin.H{"message": "Compose 项目已停止并移除"})
+	response.OK(c, gin.H{"message": "容器编排项目已停止并移除"})
 }
 
 func ComposeRestartHandler(c *gin.Context) {
@@ -64,7 +64,7 @@ func ComposeRestartHandler(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, 500, err.Error())
 		return
 	}
-	response.OK(c, gin.H{"message": "Compose 项目已重启"})
+	response.OK(c, gin.H{"message": "容器编排项目已重启"})
 }
 
 func ComposeStopHandler(c *gin.Context) {
@@ -73,7 +73,7 @@ func ComposeStopHandler(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, 500, err.Error())
 		return
 	}
-	response.OK(c, gin.H{"message": "Compose 项目已停止"})
+	response.OK(c, gin.H{"message": "容器编排项目已停止"})
 }
 
 func ComposeStartHandler(c *gin.Context) {
@@ -82,7 +82,7 @@ func ComposeStartHandler(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, 500, err.Error())
 		return
 	}
-	response.OK(c, gin.H{"message": "Compose 项目已启动"})
+	response.OK(c, gin.H{"message": "容器编排项目已启动"})
 }
 
 func ComposeLogsHandler(c *gin.Context) {

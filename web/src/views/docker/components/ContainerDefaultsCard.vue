@@ -22,7 +22,7 @@ const restartPolicyOptions = [
 <template>
   <a-card class="docker-settings-card" title="容器默认值" variant="borderless">
     <p class="docker-settings-card-desc">
-      这里的默认值会用于可视化 Compose 配置生成。
+      这里的默认值会用于可视化容器编排配置生成。
     </p>
 
     <a-form layout="vertical">

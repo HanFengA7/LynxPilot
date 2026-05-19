@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,10 +9,13 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 type ComposeProject struct {
@@ -82,7 +86,7 @@ func ListComposeProjects() ([]ComposeProject, error) {
 
 	containers, err := cli.ContainerList(context.Background(), container.ListOptions{All: true, Filters: args})
 	if err != nil {
-		return nil, fmt.Errorf("获取 Compose 项目列表失败: %w", err)
+		return nil, fmt.Errorf("获取容器编排项目列表失败: %w", err)
 	}
 
 	projectMap := make(map[string]*ComposeProject)
@@ -178,7 +182,7 @@ func ComposeUpFromContent(content string, projectName string) error {
 		if strings.Contains(err.Error(), "executable file not found") || strings.Contains(err.Error(), "not recognized") {
 			hint = "\n提示: 本机未安装 docker CLI，compose up 需要在 LynxPilot 所在机器上安装 Docker CLI"
 		}
-		return fmt.Errorf("Compose up 失败: %s%s: %w", string(output), hint, err)
+		return fmt.Errorf("容器编排部署失败: %s%s: %w", string(output), hint, err)
 	}
 	return nil
 }
@@ -213,6 +217,19 @@ func ComposeDown(projectName string, removeVolumes bool) error {
 	if err == nil {
 		for _, n := range networks {
 			_ = cli.NetworkRemove(context.Background(), n.ID)
+		}
+	}
+
+	if removeVolumes {
+		volumeArgs := filters.NewArgs()
+		volumeArgs.Add("label", "com.docker.compose.project="+projectName)
+		volumes, err := cli.VolumeList(context.Background(), volume.ListOptions{Filters: volumeArgs})
+		if err == nil {
+			for _, v := range volumes.Volumes {
+				if v != nil {
+					_ = cli.VolumeRemove(context.Background(), v.Name, true)
+				}
+			}
 		}
 	}
 
@@ -401,16 +418,20 @@ func readLogOutput(rc io.ReadCloser) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	var decoded bytes.Buffer
+	if _, err := stdcopy.StdCopy(&decoded, &decoded, bytes.NewReader(body)); err == nil {
+		return decoded.String(), nil
+	}
+
 	return string(body), nil
 }
 
 func CheckComposeAvailable() bool {
-	cli, err := getClient()
-	if err != nil {
-		return false
-	}
-	defer cli.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	_, err = cli.Ping(context.Background())
-	return err == nil
+	cmd := exec.CommandContext(ctx, "docker", "compose", "version")
+	cmd.Env = dockerComposeEnv()
+	return cmd.Run() == nil
 }

@@ -519,6 +519,26 @@ func RestartContainer(containerID string) error {
 	return cli.ContainerRestart(context.Background(), containerID, container.StopOptions{Timeout: &timeout})
 }
 
+func PauseContainer(containerID string) error {
+	cli, err := getClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	return cli.ContainerPause(context.Background(), containerID)
+}
+
+func UnpauseContainer(containerID string) error {
+	cli, err := getClient()
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	return cli.ContainerUnpause(context.Background(), containerID)
+}
+
 func RemoveContainer(containerID string, force bool) error {
 	cli, err := getClient()
 	if err != nil {
@@ -551,12 +571,12 @@ func GetContainerLogs(containerID string, tail string) (string, error) {
 	}
 	defer out.Close()
 
-	body, err := io.ReadAll(out)
+	body, err := readLogOutput(out)
 	if err != nil {
 		return "", fmt.Errorf("读取日志数据失败: %w", err)
 	}
 
-	return string(body), nil
+	return body, nil
 }
 
 func ListImages() ([]ImageInfo, error) {

@@ -87,6 +87,14 @@ export function restartContainer(id: string) {
   return req.post(`/private/docker/containers/${id}/restart`)
 }
 
+export function pauseContainer(id: string) {
+  return req.post(`/private/docker/containers/${id}/pause`)
+}
+
+export function unpauseContainer(id: string) {
+  return req.post(`/private/docker/containers/${id}/unpause`)
+}
+
 export function removeContainer(id: string, force = false) {
   return req.delete(`/private/docker/containers/${id}`, {
     params: { force },
@@ -362,6 +370,10 @@ export function composeLogs(name: string, tail = '100') {
   return req.get<unknown, { data: { logs: string } }>(`/private/docker/compose/${name}/logs`, {
     params: { tail },
   })
+}
+
+export function composePs(name: string) {
+  return req.get<unknown, { data: ContainerInfo[] }>(`/private/docker/compose/${name}/ps`)
 }
 
 export function getComposeConfig(name: string) {

@@ -20,6 +20,8 @@ func Register(router *gin.Engine) {
 		group.POST("/containers/:id/start", apiDocker.StartContainerHandler)
 		group.POST("/containers/:id/stop", apiDocker.StopContainerHandler)
 		group.POST("/containers/:id/restart", apiDocker.RestartContainerHandler)
+		group.POST("/containers/:id/pause", apiDocker.PauseContainerHandler)
+		group.POST("/containers/:id/unpause", apiDocker.UnpauseContainerHandler)
 		group.DELETE("/containers/:id", apiDocker.RemoveContainerHandler)
 
 		group.GET("/networks", apiDocker.ListNetworksHandler)

@@ -17,6 +17,7 @@ import {
   listNetworks,
   listRegistries,
   listVolumes,
+  pauseContainer,
   pingDocker,
   pruneImages,
   pruneVolumes,
@@ -33,6 +34,7 @@ import {
   testRegistry,
   getUIPrefs,
   pullImage,
+  unpauseContainer,
 } from '@/api/docker'
 import {
   AppstoreOutlined,
@@ -51,8 +53,10 @@ import {
 } from '@antdv-next/icons'
 import { Modal, message } from 'antdv-next'
 import { computed, h, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import ContainerDetailDrawer from './components/ContainerDetailDrawer.vue'
 import ContainerDefaultsCard from './components/ContainerDefaultsCard.vue'
 import DockerConnectionCard from './components/DockerConnectionCard.vue'
+import OrchestrationDetailDrawer from './components/OrchestrationDetailDrawer.vue'
 import UIPreferencesCard from './components/UIPreferencesCard.vue'
 import { useDockerSettings } from './composables/useDockerSettings'
 
@@ -72,6 +76,11 @@ const searchText = ref('')
 const showAll = ref(true)
 const refreshIntervalSeconds = shallowRef(10)
 const settingsReady = shallowRef(false)
+const containerDetailVisible = shallowRef(false)
+const selectedContainerId = shallowRef('')
+const selectedContainerName = shallowRef('')
+const orchestrationDetailVisible = shallowRef(false)
+const selectedOrchestrationProject = shallowRef('')
 
 const settingsVisible = shallowRef(false)
 const {
@@ -463,7 +472,7 @@ function applyVisualConfig() {
   }
   composeContent.value = generateComposeFromVisual()
   visualVisible.value = false
-  message.success('已生成 Compose 配置')
+  message.success('已生成容器编排配置')
 }
 
 const composeEditLoading = shallowRef(false)
@@ -746,15 +755,17 @@ async function loadData() {
   try {
     await fetchDockerStatus()
     if (dockerAvailable.value) {
-      const [, , , , composeRes] = await Promise.allSettled([
+      const [, , , , , composeRes] = await Promise.allSettled([
         fetchContainers(),
         fetchImages(),
         fetchVolumes(),
         fetchRegistries(),
+        fetchNetworks(),
         checkComposeAvailable(),
       ])
       if (composeRes.status === 'fulfilled') {
         composeAvailable.value = composeRes.value.data?.available ?? false
+        if (composeAvailable.value) await fetchComposeProjects()
       }
     }
   } finally { loading.value = false }
@@ -784,6 +795,24 @@ async function handleStop(id: string) {
 async function handleRestart(id: string) {
   try { await restartContainer(id); message.success('容器重启成功'); await fetchContainers() }
   catch { message.error('容器重启失败') }
+}
+async function handlePause(id: string) {
+  try { await pauseContainer(id); message.success('容器已暂停'); await fetchContainers() }
+  catch { message.error('暂停容器失败') }
+}
+async function handleUnpause(id: string) {
+  try { await unpauseContainer(id); message.success('容器已恢复'); await fetchContainers() }
+  catch { message.error('恢复容器失败') }
+}
+function openContainerDetail(record: ContainerInfo) {
+  selectedContainerId.value = record.id
+  selectedContainerName.value = getDisplayName(record.names)
+  containerDetailVisible.value = true
+}
+
+function openOrchestrationDetail(name: string) {
+  selectedOrchestrationProject.value = name
+  orchestrationDetailVisible.value = true
 }
 function handleRemove(id: string, name: string) {
   Modal.confirm({
@@ -975,25 +1004,25 @@ function handlePruneVolumes() {
 
 function handleComposeDown(name: string) {
   Modal.confirm({
-    title: '确认移除 Compose 项目', content: `确定要停止并移除 "${name}" 吗？`, icon: () => h(ExclamationCircleOutlined), okType: 'danger', okText: '移除', cancelText: '取消',
+    title: '确认移除容器编排项目', content: `确定要停止并移除 "${name}" 吗？`, icon: () => h(ExclamationCircleOutlined), okType: 'danger', okText: '移除', cancelText: '取消',
     async onOk() {
-      try { await composeDown(name); message.success('Compose 项目已移除'); await fetchComposeProjects() }
+      try { await composeDown(name); message.success('容器编排项目已移除'); await fetchComposeProjects() }
       catch { message.error('移除失败') }
     },
   })
 }
 
 async function handleComposeUp() {
-  if (!composeContent.value) { message.warning('请输入 Compose 内容'); return }
+  if (!composeContent.value) { message.warning('请输入容器编排配置内容'); return }
   composeUpLoading.value = true
   try {
     await composeUp(composeContent.value, composeProjectName.value || undefined)
-    message.success('Compose 部署成功')
+    message.success('容器编排部署成功')
     composeUpVisible.value = false
     composeContent.value = ''
     composeProjectName.value = ''
     await fetchComposeProjects()
-  } catch { message.error('Compose 部署失败') }
+  } catch { message.error('容器编排部署失败') }
   finally { composeUpLoading.value = false }
 }
 
@@ -1031,7 +1060,7 @@ const containerColumns = [
   { title: '详情', dataIndex: 'status', key: 'status', width: 140 },
   { title: '端口映射', dataIndex: 'ports', key: 'ports', width: 220 },
   { title: '容器ID', dataIndex: 'id', key: 'id', width: 120 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const },
+  { title: '操作', key: 'action', width: 280, fixed: 'right' as const },
 ]
 
 const networkColumns = [
@@ -1129,7 +1158,7 @@ onBeforeUnmount(() => stopRefreshTimer())
               <label class="toggle-row"><span class="toggle-label">显示已停止</span><a-switch v-model:checked="showAll" size="small" /></label>
             </div>
 
-            <a-table :columns="containerColumns" :data-source="filteredContainers" :pagination="{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个容器` }" :scroll="{ x: 1060 }" row-key="id" size="middle">
+            <a-table :columns="containerColumns" :data-source="filteredContainers" :pagination="{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个容器` }" :scroll="{ x: 1140 }" row-key="id" size="middle">
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'name'"><span class="container-name">{{ getDisplayName(record.names) }}</span></template>
                 <template v-else-if="column.key === 'image'"><span class="container-image">{{ record.image }}</span></template>
@@ -1142,9 +1171,12 @@ onBeforeUnmount(() => stopRefreshTimer())
                 <template v-else-if="column.key === 'id'"><span class="container-id">{{ record.id }}</span></template>
                 <template v-else-if="column.key === 'action'">
                   <div class="action-btns">
-                    <a-button v-if="record.state !== 'running'" type="link" size="small" @click="handleStart(record.id)"><template #icon><CaretRightOutlined /></template>启动</a-button>
+                    <a-button type="link" size="small" @click="openContainerDetail(record)">详情</a-button>
+                    <a-button v-if="record.state !== 'running' && record.state !== 'paused'" type="link" size="small" @click="handleStart(record.id)"><template #icon><CaretRightOutlined /></template>启动</a-button>
                     <a-button v-if="record.state === 'running'" type="link" size="small" @click="handleStop(record.id)">停止</a-button>
                     <a-button v-if="record.state === 'running'" type="link" size="small" @click="handleRestart(record.id)"><template #icon><ReloadOutlined /></template>重启</a-button>
+                    <a-button v-if="record.state === 'running'" type="link" size="small" @click="handlePause(record.id)">暂停</a-button>
+                    <a-button v-if="record.state === 'paused'" type="link" size="small" @click="handleUnpause(record.id)">恢复</a-button>
                     <a-button type="link" size="small" danger @click="handleRemove(record.id, getDisplayName(record.names))"><template #icon><DeleteOutlined /></template>删除</a-button>
                   </div>
                 </template>
@@ -1229,10 +1261,10 @@ onBeforeUnmount(() => stopRefreshTimer())
             </a-table>
           </a-tab-pane>
 
-          <a-tab-pane key="compose" tab="Compose">
+          <a-tab-pane key="compose" tab="容器编排">
             <template v-if="!composeAvailable">
               <div class="compose-unavailable">
-                <p>未检测到 Docker Compose 插件，Compose 功能不可用。</p>
+                <p>未检测到 Docker Compose 插件，容器编排功能不可用。</p>
                 <p style="color: rgba(0,0,0,.35); font-size: 12px">请确认环境中已安装 <code>docker compose</code>（Docker Desktop 内置，Linux 需手动安装插件）。</p>
               </div>
             </template>
@@ -1256,6 +1288,7 @@ onBeforeUnmount(() => stopRefreshTimer())
                   </template>
                   <template v-else-if="column.key === 'action'">
                     <div class="action-btns">
+                      <a-button type="link" size="small" @click="openOrchestrationDetail(record.name)">详情</a-button>
                       <a-button type="link" size="small" :loading="composeEditLoading" @click="editComposeProject(record.name)"><template #icon><EditOutlined /></template>编辑</a-button>
                       <a-button type="link" size="small" :loading="composeEditLoading" @click="visualEditComposeProject(record.name)"><template #icon><FormOutlined /></template>可视化</a-button>
                       <a-button v-if="record.status === 'stopped' || record.status === 'partial'" type="link" size="small" @click="composeStart(record.name).then(() => { message.success('已启动'); fetchComposeProjects() }).catch(() => message.error('启动失败'))">启动</a-button>
@@ -1384,11 +1417,22 @@ onBeforeUnmount(() => stopRefreshTimer())
       </a-spin>
     </a-modal>
 
-    <a-modal v-model:open="composeUpVisible" title="部署 Compose 项目" :confirm-loading="composeUpLoading" ok-text="部署" cancel-text="取消" width="680px" @ok="handleComposeUp">
+    <ContainerDetailDrawer
+      v-model:open="containerDetailVisible"
+      :container-id="selectedContainerId"
+      :container-name="selectedContainerName"
+    />
+
+    <OrchestrationDetailDrawer
+      v-model:open="orchestrationDetailVisible"
+      :project-name="selectedOrchestrationProject"
+    />
+
+    <a-modal v-model:open="composeUpVisible" title="部署容器编排项目" :confirm-loading="composeUpLoading" ok-text="部署" cancel-text="取消" width="680px" @ok="handleComposeUp">
       <div class="config-form">
         <div class="config-field"><label class="config-label">项目名称（可选）</label><a-input v-model:value="composeProjectName" placeholder="留空则使用 compose 文件中的名称" /></div>
         <div class="config-field">
-          <label class="config-label">docker-compose.yml 内容 *</label>
+          <label class="config-label">容器编排 YAML 内容 *</label>
           <div class="compose-editor-toolbar">
             <button type="button" class="editor-toolbar-btn" @click="presetVisible = true"><AppstoreOutlined class="editor-toolbar-icon" />预配置模板</button>
             <button type="button" class="editor-toolbar-btn" @click="openVisualConfig"><FormOutlined class="editor-toolbar-icon" />可视化配置</button>
@@ -1418,7 +1462,7 @@ onBeforeUnmount(() => stopRefreshTimer())
       </div>
     </a-modal>
 
-    <a-modal v-model:open="visualVisible" title="可视化配置 Compose" width="860px" ok-text="生成配置" cancel-text="取消" @ok="applyVisualConfig">
+    <a-modal v-model:open="visualVisible" title="可视化配置容器编排" width="860px" ok-text="生成配置" cancel-text="取消" @ok="applyVisualConfig">
       <div class="visual-form">
         <div v-for="(svc, idx) in visualServices" :key="idx" class="visual-service-card">
           <div class="visual-service-header">
